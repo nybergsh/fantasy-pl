@@ -1,3 +1,7 @@
+# Mac folder files
+*.DS_Store
+pre_season_analysis/output/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
