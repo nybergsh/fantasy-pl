@@ -5,7 +5,7 @@ import requests
 import aiohttp
 import pandas as pd
 import csv
-
+pd.options.mode.chained_assignment = None  # default='warn'
 from understat import Understat
 
 
@@ -19,17 +19,38 @@ async def main():
         for i,r in data.iterrows():
             grouped_stats = await understat.get_player_grouped_stats(r[0])
             
-            df_tmp = pd.json_normalize(grouped_stats['season']).set_index(['season']).filter(like='2021',axis=0)
+            df_tmp = pd.json_normalize(grouped_stats['season'])
+
+            ## Generating career KPIs (xG90,xA90,axG90,xYC,xRC) ##
+
+            # Loading relevant fields from df_tmp
+            df_tot = df_tmp[['games','time','xG','xA','goals','yellow','red']]
+            
+            # Converting numbers to numeric and aggregating
+            tot_cols = df_tot.columns
+            df_tot[tot_cols] = df_tot[tot_cols].apply(pd.to_numeric, errors='coerce')
+            df_tot  = df_tot.agg(['sum'])
+            
+            # Calculating KPIs
+            df_tot['xG90'] = df_tot['xG'] / df_tot['time'] * 90
+            df_tot['xA90'] = df_tot['xA'] / df_tot['time'] * 90
+            df_tot['AxG90'] = df_tot['xG90'] * df_tot['goals'] / df_tot['xG']
+            df_tot['xYC'] = df_tot['yellow'] / df_tot['games']
+            df_tot['xRC'] = df_tot['red'] / df_tot['games']
+
+            ## Generating last season KPIs (time, games, xG, xA)
+            df_tmp = df_tmp.set_index(['season']).filter(like='2021',axis=0)
             df_tmp = df_tmp.loc[df_tmp['team'].isin(teams)]
             df_tmp = df_tmp[['games','time','goals','assists','xG','xA','yellow','red']]
             cols = df_tmp.columns
             df_tmp[cols] = df_tmp[cols].apply(pd.to_numeric, errors='coerce')
 
-
             df_tmp = df_tmp.agg(['sum'])
             df_tmp[['understat_code','fpl_id']] = [r[0],r[1]]
+            
+            df_tmp[['xG90','xA90','AxG90','xYC','xRC']] = df_tot[['xG90','xA90','AxG90','xYC','xRC']]
             df = pd.concat([df,df_tmp],ignore_index=True) 
-
+    
     return df
 
 
@@ -81,10 +102,9 @@ def generate_data_model(main_df,understat_df,fpl_df):
     
     main_df['ppg'] = main_df['total_points'] / main_df['games']
     main_df['vapm'] = ((main_df['ppg'] - 2) / main_df['now_cost']) *10
-    print(main_df[['ppg','total_points','games','now_cost','vapm']])
     print(main_df.columns)
 
-    main_df = main_df[['first_name','second_name','web_name','short_name','name','singular_name_short','singular_name','selected_by_percent','now_cost','ppg','vapm','bps','total_points','games','time']]
+    main_df = main_df[['first_name','second_name','web_name','short_name','name','singular_name_short','singular_name','selected_by_percent','now_cost','ppg','vapm','bps','total_points','games','time','xG90','xA90','AxG90','xYC','xRC']]
 
     main_df.to_csv(r'output/vapm_analysis.csv')
 
