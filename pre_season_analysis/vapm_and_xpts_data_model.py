@@ -84,7 +84,7 @@ def generate_data_model(main_df,understat_df,fpl_df):
     print(main_df[['ppg','total_points','games','now_cost','vapm']])
     print(main_df.columns)
 
-    main_df = main_df[['first_name','second_name','web_name','short_name','name','singular_name_short','singular_name','selected_by_percent','now_cost','ppg','vapm','bps']]
+    main_df = main_df[['first_name','second_name','web_name','short_name','name','singular_name_short','singular_name','selected_by_percent','now_cost','ppg','vapm','bps','total_points','games','time']]
 
     main_df.to_csv(r'output/vapm_analysis.csv')
 
